@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
 	printf("Reference frame resolution: Width = %d Height = %d Num Frames = %.0f \n", refS.width, refS.height, captRefrnc.get(CV_CAP_PROP_FRAME_COUNT));
 
 	// set up file for saving the video
-	videoOut.open(sourceReference + "__20160509.mp4", CV_FOURCC('M', 'P', 'E', 'G'), 30, refS);
+	videoOut.open(sourceReference + "__20160523.mp4", CV_FOURCC('M', 'P', 'E', 'G'), 30, refS);
 
 	// how long to wait between frame, this is only for recorded video
 	double delay = 1 / captRefrnc.get(CV_CAP_PROP_FPS) * 1000; // 1/framerate*1000
@@ -116,6 +116,25 @@ int main(int argc, char *argv[])
 	Point rightLaneStart = Point(carCenter + laneWidth / 2, laneBottom + roiHeight);
 	Point rightLaneEnd = Point(carCenter + laneWidth / 2 - (roiOffset / 10 * laneNarrowFactor)*(numberOfZoneRows + 1), laneBottom + roiHeight - roiOffset*(numberOfZoneRows + 1));
 
+	Point2f inputQuad[4];
+	Point2f outputQuad[4];
+	Mat lambda(2, 4, CV_32FC1);
+	lambda = Mat::zeros(currentFrame.rows,currentFrame.cols, currentFrame.type());
+
+	inputQuad[0] = Point2f(leftLaneStart.x, leftLaneStart.y);
+	inputQuad[1] = Point2f(leftLaneEnd.x, leftLaneEnd.y);
+	inputQuad[2] = Point2f(rightLaneStart.x,rightLaneStart.y);
+	inputQuad[3] = Point2f(rightLaneEnd.x, rightLaneEnd.y);
+	
+	outputQuad[0] = Point2f(leftLaneStart.x, leftLaneStart.y);
+	outputQuad[1] = Point2f(leftLaneStart.x, leftLaneEnd.y);
+	outputQuad[2] = Point2f(rightLaneStart.x, rightLaneStart.y);
+	outputQuad[3] = Point2f(rightLaneStart.x, rightLaneEnd.y);
+
+
+	lambda = getPerspectiveTransform(inputQuad, outputQuad);
+	Mat temp(currentFrame.size(), currentFrame.type());
+
 	for (;;) //Show the image captured in the window and repeat
 	{
 		keyPressed = (char)cvWaitKey(int(delay));
@@ -130,6 +149,8 @@ int main(int argc, char *argv[])
 		{
 			break;
 		}
+
+		warpPerspective(currentFrame, currentFrame,lambda, currentFrame.size());
 
 		for (int ii = 0; ii < roiSet.size(); ++ii)
 		{
@@ -147,10 +168,10 @@ int main(int argc, char *argv[])
 		line(currentFrame, rightLaneStart, rightLaneEnd, Scalar(255, 0, 0), 1, LINE_AA, 0); // right lane line
 
 																							//createTrackbar("rho", mainWindow, &test, 300);
-																							//setMouseCallback(mainWindow, CallBackFunc, NULL);		
-		imshow(mainWindow, currentFrame);
+																					//setMouseCallback(mainWindow, CallBackFunc, NULL);		
+		imshow(mainWindow, currentFrame(Rect(400, 500, 1520, 500)));
 		imshow(skelWindow, roiSet[0].skeleton);
-
+		
 
 		double noSaveTimer = 1 / (((double)getTickCount() - timer) / getTickFrequency());
 		videoOut.write(currentFrame); // for saving the video
